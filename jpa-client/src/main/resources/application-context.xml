@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:c="http://www.springframework.org/schema/c" xmlns:cache="http://www.springframework.org/schema/cache"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:flex="http://www.springframework.org/schema/flex" xmlns:jee="http://www.springframework.org/schema/jee"
+	xmlns:lang="http://www.springframework.org/schema/lang" xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:task="http://www.springframework.org/schema/task"
+	xmlns:util="http://www.springframework.org/schema/util" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xsi:schemaLocation="http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc-3.2.xsd
+		http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee-3.2.xsd
+		http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang-3.2.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
+		http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-3.2.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/cache http://www.springframework.org/schema/cache/spring-cache-3.2.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.2.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.2.xsd
+		http://www.springframework.org/schema/flex http://www.springframework.org/schema/flex/spring-flex-1.5.xsd
+		http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.2.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.2.xsd">
+
+	<bean class="org.springframework.orm.hibernate4.HibernateExceptionTranslator" />
+
+	<bean id="placeholderConfig"
+		class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
+		<property name="location" value="classpath:database.properties" />
+	</bean>
+
+	<!-- SETS UP THE DATASOURCE: HOLDS ALL DATABASE CONFIGURATIONS -->
+	<bean id="dataSource" class="org.apache.commons.dbcp.BasicDataSource">
+		<property name="driverClassName" value="${jdbc.driver}" />
+		<property name="url" value="${jdbc.url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+
+	<!-- SETS UP AN ADAPTER (CAN BE HIBERNATE, ECLIPSELINK, TOPLINK, OPENJPA) -->
+	<bean id="jpaVendorAdapter"
+		class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter">
+		<property name="database" value="${jpa.database}" />
+		<property name="databasePlatform" value="${jpa.dialect}" />
+	</bean>
+
+	<!-- SETS UP THE ENTITY MANAGER FACTORY BASED ON DATASOURCE AND THE ADAPTER -->
+	<bean id="entityManagerFactory"
+		class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
+		<property name="packagesToScan" value="${project.basePackage}" />
+		<property name="dataSource" ref="dataSource" />
+		<property name="jpaVendorAdapter" ref="jpaVendorAdapter" />
+		<property name="jpaProperties" ref="jpaPropertiesMap" />
+	</bean>
+
+	<util:map id="jpaPropertiesMap" key-type="java.lang.String"
+		value-type="java.lang.String">
+		<!-- 
+		<entry key="hibernate.hbm2ddl.auto" value="${jpa.ddlConfiguration}" />
+		 -->
+		<entry key="hibernate.show_sql" value="${jpa.showSql}" />
+		<entry key="hibernate.format_sql" value="${jpa.formatSql}" />
+		<entry key="hibernate.dialect" value="${jpa.dialect}" />
+	</util:map>
+
+	<!-- ENABLES ENTITY MANAGER AUTOWIRING WITH @PersistenceContext ANNOTATION -->
+	<bean
+		class="org.springframework.orm.jpa.support.PersistenceAnnotationBeanPostProcessor" />
+		
+	<!-- ENABLES SPRING DATABASE EXCEPTIONS TO AUTOWIRE WITH @Repository ANNOTATION -->
+	<bean
+		class="org.springframework.dao.annotation.PersistenceExceptionTranslationPostProcessor" />
+
+	<bean name="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
+		<property name="entityManagerFactory" ref="entityManagerFactory" />
+	</bean>
+
+	<tx:annotation-driven transaction-manager="transactionManager" />
+	
+	<context:annotation-config/>
+	<context:component-scan base-package="br.com.jpa" />
+	
+	<bean name="primitiveStrategy" class="br.com.jpa.table.strategy.PrimitiveStrategy" />
+	<bean name="objectStrategy" class="br.com.jpa.table.strategy.ObjectStrategy" />
+	<bean name="collectionStrategy" class="br.com.jpa.table.strategy.CollectionStrategy" />
+	
+	<bean name="objectMapping" class="br.com.jpa.table.ObjectMapping">
+		<property name="collectionStrategy" ref="collectionStrategy"/>
+		<property name="objectStrategy" ref="objectStrategy"/>
+		<property name="primitiveStrategy" ref="primitiveStrategy"/>
+		
+		<property name="mapping">
+			<map key-type="java.lang.Class">
+			</map>
+		</property>
+	</bean>
+	
+	<bean name="columnBuilder" class="br.com.jpa.table.ColumnBuilderImpl">
+		<property name="mapper" ref="objectMapping" />
+	</bean>
+
+</beans>
